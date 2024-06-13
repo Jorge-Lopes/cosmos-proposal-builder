@@ -16,6 +16,7 @@ import {
   stakingParamsQuery,
   ibcDenomTracesQuery,
   ibcDenomHashQuery,
+  vaultManagerGovernanceQuery,
 } from "./queries";
 import { renderHook } from "@testing-library/react-hooks";
 
@@ -45,7 +46,7 @@ describe("React Query Hook Tests for RPC Endpoints", () => {
     }: QueryTestContext) => {
       const { result, waitFor } = renderHook(
         () => useQuery(swingSetParamsQuery(api)),
-        { wrapper },
+        { wrapper }
       );
 
       await waitFor(() => result.current.isSuccess);
@@ -71,7 +72,7 @@ describe("React Query Hook Tests for RPC Endpoints", () => {
     }: QueryTestContext) => {
       const { result, waitFor } = renderHook(
         () => useQuery(accountBalancesQuery(api, addrs.provisionPool)),
-        { wrapper },
+        { wrapper }
       );
 
       await waitFor(() => result.current.isSuccess);
@@ -89,7 +90,7 @@ describe("React Query Hook Tests for RPC Endpoints", () => {
     }: QueryTestContext) => {
       const { result, waitFor } = renderHook(
         () => useQuery(bankAssetsQuery(api)),
-        { wrapper },
+        { wrapper }
       );
 
       await waitFor(() => result.current.isSuccess);
@@ -101,7 +102,7 @@ describe("React Query Hook Tests for RPC Endpoints", () => {
       expect(Number(uist?.amount ?? 0)).toBeGreaterThan(1);
 
       const ibcTokens = result.current.data?.filter((x) =>
-        x.denom.startsWith("ibc/"),
+        x.denom.startsWith("ibc/")
       );
       expect(ibcTokens?.length).toBeGreaterThan(1);
     });
@@ -114,7 +115,7 @@ describe("React Query Hook Tests for RPC Endpoints", () => {
     }: QueryTestContext) => {
       const { result, waitFor } = renderHook(
         () => useQuery(bankAssetsMetadataQuery(api)),
-        { wrapper },
+        { wrapper }
       );
 
       await waitFor(() => result.current.isSuccess);
@@ -130,7 +131,7 @@ describe("React Query Hook Tests for RPC Endpoints", () => {
     }: QueryTestContext) => {
       const { result, waitFor } = renderHook(
         () => useQuery(votingParamsQuery(api)),
-        { wrapper },
+        { wrapper }
       );
 
       await waitFor(() => result.current.isSuccess);
@@ -150,7 +151,7 @@ describe("React Query Hook Tests for RPC Endpoints", () => {
     }: QueryTestContext) => {
       const { result, waitFor } = renderHook(
         () => useQuery(tallyParamsQuery(api)),
-        { wrapper },
+        { wrapper }
       );
 
       await waitFor(() => result.current.isSuccess);
@@ -172,7 +173,7 @@ describe("React Query Hook Tests for RPC Endpoints", () => {
     }: QueryTestContext) => {
       const { result, waitFor } = renderHook(
         () => useQuery(depositParamsQuery(api)),
-        { wrapper },
+        { wrapper }
       );
 
       await waitFor(() => result.current.isSuccess);
@@ -198,7 +199,7 @@ describe("React Query Hook Tests for RPC Endpoints", () => {
     }: QueryTestContext) => {
       const { result, waitFor } = renderHook(
         () => useQuery(distributionParamsQuery(api)),
-        { wrapper },
+        { wrapper }
       );
 
       await waitFor(() => result.current.isSuccess);
@@ -221,7 +222,7 @@ describe("React Query Hook Tests for RPC Endpoints", () => {
     }: QueryTestContext) => {
       const { result, waitFor } = renderHook(
         () => useQuery(stakingParamsQuery(api)),
-        { wrapper },
+        { wrapper }
       );
 
       await waitFor(() => result.current.isSuccess);
@@ -242,7 +243,7 @@ describe("React Query Hook Tests for RPC Endpoints", () => {
     it("should return data", async ({ api, wrapper }: QueryTestContext) => {
       const { result, waitFor } = renderHook(
         () => useQuery(ibcDenomTracesQuery(api)),
-        { wrapper },
+        { wrapper }
       );
 
       await waitFor(() => result.current.isSuccess);
@@ -261,7 +262,7 @@ describe("React Query Hook Tests for RPC Endpoints", () => {
     }: QueryTestContext) => {
       const { result, waitFor } = renderHook(
         () => useQuery(ibcDenomHashQuery(api, "transfer/channel-0", "uatom")),
-        { wrapper },
+        { wrapper }
       );
 
       await waitFor(() => result.current.isSuccess);
@@ -269,8 +270,31 @@ describe("React Query Hook Tests for RPC Endpoints", () => {
       // XXX not implemented in agoric-3-proposals
       // see https://github.com/DCFoundation/cosmos-proposal-builder/pull/27#discussion_r1443527639
       expect(result.current.data).toMatchInlineSnapshot(
-        '"Denom hash not found."',
+        '"Denom hash not found."'
       );
+    });
+  });
+
+  describe("vaultManagerGovernance Query", () => {
+    it("should return data", async ({ api, wrapper }: QueryTestContext) => {
+      const { result, waitFor } = renderHook(
+        () => useQuery(vaultManagerGovernanceQuery(api, "manager1")),
+        { wrapper }
+      );
+
+      await waitFor(() => result.current.isSuccess);
+
+      const innerData = JSON.parse(result.current.data.value);
+      const governanceString = JSON.parse(innerData.values[0]).body.replace(
+        /#/g,
+        ""
+      );
+      const governanceData = JSON.parse(governanceString).current;
+      const LiquidationMarginNumerator =
+        governanceData.LiquidationMargin.value.numerator.value;
+
+      // This assertion should be replaced with 380
+      expect(LiquidationMarginNumerator).toBe("+150");
     });
   });
 });

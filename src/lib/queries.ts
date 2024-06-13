@@ -20,6 +20,7 @@ import type {
   DistributionParams,
   StakingParams,
 } from "../types/gov";
+import { VaultManagerGovernance } from "../types/vstorage";
 
 export const swingSetParamsQuery = (
   api: string | undefined,
@@ -169,6 +170,21 @@ export const ibcDenomHashQuery = (
     );
     const data: DenomHashResponse = await res.json();
     return data?.hash?.length ? `ibc/${data.hash}` : "Denom hash not found.";
+  },
+  enabled: !!api,
+});
+
+export const vaultManagerGovernanceQuery = (
+  api: string | undefined,
+  manager: string | undefined,
+) => ({
+  queryKey: ["vaultManagerGovernance", api],
+  queryFn: async () => {
+    const res = await fetch(
+      `${api}/agoric/vstorage/data/published.vaultFactory.managers.${manager}.governance`
+    );
+    const data = await res.json();
+    return data;
   },
   enabled: !!api,
 });
