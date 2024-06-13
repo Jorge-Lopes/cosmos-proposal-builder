@@ -5,7 +5,9 @@
     "chainStorage": "priceFeed",
     "chainTimerService": "priceFeed",
     "client": "priceFeed",
+    "contractGovernor": "priceFeed",
     "econCharterKit": "priceFeed",
+    "economicCommitteeCreatorFacet": "priceFeed",
     "highPrioritySendersManager": "priceFeed",
     "namesByAddressAdmin": "priceFeed",
     "priceAuthority": "priceFeed",
@@ -13,10 +15,6 @@
     "startGovernedUpgradable": "priceFeed",
     "vatAdminSvc": "makeCoreProposalBehavior",
     "zoe": "makeCoreProposalBehavior"
-  },
-  "installation": {},
-  "instance": {
-    "produce": "priceFeed"
   },
   "namedVat": {
     "consume": {
@@ -27,6 +25,9 @@
     "produce": "priceFeed"
   },
   "evaluateBundleCap": "makeCoreProposalBehavior",
+  "installation": {
+    "produce": "makeCoreProposalBehavior"
+  },
   "modules": {
     "utils": {
       "runModuleBehaviors": "makeCoreProposalBehavior"

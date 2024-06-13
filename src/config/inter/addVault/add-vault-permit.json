@@ -2,29 +2,29 @@
   "consume": {
     "bankManager": true,
     "agoricNamesAdmin": "makeCoreProposalBehavior",
+    "bankMints": true,
     "reserveKit": true,
+    "vBankKits": true,
     "startUpgradable": true,
     "priceAuthorityAdmin": true,
     "priceAuthority": true,
+    "scaledPriceAuthorityKits": true,
     "auctioneerKit": "auctioneer",
     "vaultFactoryKit": "vaultFactory",
-    "chainTimerService": true,
     "vatAdminSvc": "makeCoreProposalBehavior",
     "zoe": "makeCoreProposalBehavior"
   },
   "produce": {
     "bankMints": true,
-    "vBankKits": true
+    "vBankKits": true,
+    "scaledPriceAuthorityKits": true
   },
   "installation": {
     "consume": {
       "mintHolder": true,
       "scaledPriceAuthority": true
-    }
-  },
-  "instance": {
-    "produce": true,
-    "consume": true
+    },
+    "produce": "makeCoreProposalBehavior"
   },
   "brand": {
     "consume": {

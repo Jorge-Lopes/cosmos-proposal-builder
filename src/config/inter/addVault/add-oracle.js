@@ -3,7 +3,7 @@
 
 const manifestBundleRef = {
   bundleID:
-    "b1-80e6fe68b299c82c2d26802c312bc37966a559f7b28f87d058887a79a9db48ad97da2240e71e3f98986071da8fc3c5d02358bec577b17a89cee2b1cb3cd23958"
+    "b1-5192e186928390aee498b1c43ce4f3d9e36af52f894ef6319b2e04fafd5588736b9dba6d6a4f30ad16e6e864304f33d5040499d09a5f17f3297bd5a3e4295784",
 };
 const getManifestCall = harden([
   "getManifestForPriceFeed",
@@ -22,17 +22,19 @@ const getManifestCall = harden([
       maxSubmissionCount: 1000,
       maxSubmissionValue:
         115792089237316195423570985008687907853269984665640564039457584007913129639936n,
-      minSubmissionCount: 3,
+      minSubmissionCount: 2,
       minSubmissionValue: 1n,
       restartDelay: 1,
       timeout: 10,
     },
-    oracleAddresses: [
-      "%%NoracleAddressesN%%"
-    ],
+    oracleAddresses: ["%%NoracleAddressesN%%"],
+    priceAggregatorRef: {
+      bundleID:
+        "b1-4efd31d2e91dd6340d31a80aea1b1918f99e9f05f2ba9e5b9bb96711f1a470b0ad7eca202fbf63dad2c4761640ebc0b2de9caffa79349fd64e7dde8d3bc0e022",
+    },
   },
 ]);
-const overrideManifest = {
+const customManifest = {
   createPriceFeed: {
     consume: {
       agoricNamesAdmin: "priceFeed",
@@ -40,15 +42,14 @@ const overrideManifest = {
       chainStorage: "priceFeed",
       chainTimerService: "priceFeed",
       client: "priceFeed",
+      contractGovernor: "priceFeed",
       econCharterKit: "priceFeed",
+      economicCommitteeCreatorFacet: "priceFeed",
       highPrioritySendersManager: "priceFeed",
       namesByAddressAdmin: "priceFeed",
       priceAuthority: "priceFeed",
       priceAuthorityAdmin: "priceFeed",
       startGovernedUpgradable: "priceFeed",
-    },
-    instance: {
-      produce: "priceFeed",
     },
   },
   ensureOracleBrands: {
@@ -63,19 +64,22 @@ const overrideManifest = {
   },
 };
 
-// Make the behavior the completion value.
-(({
+// Make a behavior function and "export" it by way of script completion value.
+// It is constructed by an anonymous invocation to ensure the absence of a global binding
+// for makeCoreProposalBehavior, which may not be necessary but preserves behavior pre-dating
+// https://github.com/Agoric/agoric-sdk/pull/8712 .
+const behavior = (({
   manifestBundleRef,
-  getManifestCall,
-  overrideManifest,
+  getManifestCall: [manifestGetterName, ...manifestGetterArgs],
+  customManifest,
   E,
   log = console.info,
-  restoreRef: overrideRestoreRef,
+  customRestoreRef,
 }) => {
   const { entries, fromEntries } = Object;
 
   // deeplyFulfilled is a bit overkill for what we need.
-  const shallowlyFulfilled = async obj => {
+  const shallowlyFulfilled = async (obj) => {
     if (!obj) {
       return obj;
     }
@@ -83,90 +87,115 @@ const overrideManifest = {
       entries(obj).map(async ([key, valueP]) => {
         const value = await valueP;
         return [key, value];
-      }),
+      })
     );
     return fromEntries(ents);
   };
 
-  /** @param {ChainBootstrapSpace & BootstrapPowers & { evaluateBundleCap: any }} allPowers */
-  const behavior = async allPowers => {
-    // NOTE: If updating any of these names extracted from `allPowers`, you must
-    // change `permits` above to reflect their accessibility.
-    const {
-      consume: { vatAdminSvc, zoe, agoricNamesAdmin },
-      evaluateBundleCap,
-      // NO installation: { ... },
-      modules: {
-        utils: { runModuleBehaviors },
-      },
-    } = allPowers;
-    const [exportedGetManifest, ...manifestArgs] = getManifestCall;
-
+  const makeRestoreRef = (vatAdminSvc, zoe) => {
     /** @type {(ref: import\('./externalTypes.js').ManifestBundleRef) => Promise<Installation<unknown>>} */
-    const defaultRestoreRef = async ref => {
+    const defaultRestoreRef = async (bundleRef) => {
       // extract-proposal.js creates these records, and bundleName is
-      // the name under which the bundle was installed into
+      // the optional name under which the bundle was installed into
       // config.bundles
-      const p =
-        'bundleName' in ref
-          ? E(vatAdminSvc).getBundleIDByName(ref.bundleName)
-          : ref.bundleID;
-      const bundleID = await p;
+      const bundleIdP =
+        "bundleName" in bundleRef
+          ? E(vatAdminSvc).getBundleIDByName(bundleRef.bundleName)
+          : bundleRef.bundleID;
+      const bundleID = await bundleIdP;
       const label = bundleID.slice(0, 8);
       return E(zoe).installBundleID(bundleID, label);
     };
-    const restoreRef = overrideRestoreRef || defaultRestoreRef;
+    return defaultRestoreRef;
+  };
+
+  /** @param {ChainBootstrapSpace & BootstrapPowers & { evaluateBundleCap: any }} powers */
+  const coreProposalBehavior = async (powers) => {
+    // NOTE: `powers` is expected to match or be a superset of the above `permits` export,
+    // which should therefore be kept in sync with this deconstruction code.
+    // HOWEVER, do note that this function is invoked with at least the *union* of powers
+    // required by individual moduleBehaviors declared by the manifest getter, which is
+    // necessary so it can use `runModuleBehaviors` to provide the appropriate subset to
+    // each one (see ./writeCoreProposal.js).
+    // Handle `powers` with the requisite care.
+    const {
+      consume: { vatAdminSvc, zoe, agoricNamesAdmin },
+      evaluateBundleCap,
+      installation: { produce: produceInstallations },
+      modules: {
+        utils: { runModuleBehaviors },
+      },
+    } = powers;
 
     // Get the on-chain installation containing the manifest and behaviors.
-    console.info('evaluateBundleCap', {
+    log("evaluateBundleCap", {
       manifestBundleRef,
-      exportedGetManifest,
+      manifestGetterName,
       vatAdminSvc,
     });
     let bcapP;
-    if ('bundleName' in manifestBundleRef) {
+    if ("bundleName" in manifestBundleRef) {
       bcapP = E(vatAdminSvc).getNamedBundleCap(manifestBundleRef.bundleName);
-    } else {
+    } else if ("bundleID" in manifestBundleRef) {
       bcapP = E(vatAdminSvc).getBundleCap(manifestBundleRef.bundleID);
+    } else {
+      const keys = Reflect.ownKeys(manifestBundleRef).map((key) =>
+        typeof key === "string" ? JSON.stringify(key) : String(key)
+      );
+      const keysStr = `[${keys.join(", ")}]`;
+      throw Error(
+        `bundleRef must have own bundleName or bundleID, missing in ${keysStr}`
+      );
     }
     const bundleCap = await bcapP;
 
-    const manifestNS = await evaluateBundleCap(bundleCap);
+    const proposalNS = await evaluateBundleCap(bundleCap);
 
-    console.error('execute', {
-      exportedGetManifest,
-      behaviors: Object.keys(manifestNS),
+    // Get the manifest and its metadata.
+    log("execute", {
+      manifestGetterName,
+      bundleExports: Object.keys(proposalNS),
     });
+    const restoreRef = customRestoreRef || makeRestoreRef(vatAdminSvc, zoe);
     const {
       manifest,
       options: rawOptions,
       installations: rawInstallations,
-    } = await manifestNS[exportedGetManifest](
+    } = await proposalNS[manifestGetterName](
       harden({ restoreRef }),
-      ...manifestArgs,
+      ...manifestGetterArgs
     );
 
     // Await references in the options or installations.
     const [options, installations] = await Promise.all(
-      [rawOptions, rawInstallations].map(shallowlyFulfilled),
+      [rawOptions, rawInstallations].map(shallowlyFulfilled)
     );
 
-    // DON'T Publish the installations for behavior dependencies.
-    // const installAdmin = E(agoricNamesAdmin).lookupAdmin('installation');
-    // ...
+    // Publish the installations for our dependencies.
+    const installationEntries = entries(installations || {});
+    if (installationEntries.length > 0) {
+      const installAdmin = E(agoricNamesAdmin).lookupAdmin("installation");
+      await Promise.all(
+        installationEntries.map(([key, value]) => {
+          produceInstallations[key].resolve(value);
+          return E(installAdmin).update(key, value);
+        })
+      );
+    }
 
-    // Evaluate the manifest for our behaviors.
+    // Evaluate the manifest.
     return runModuleBehaviors({
-      allPowers,
-      behaviors: manifestNS,
-      manifest: overrideManifest || manifest,
+      // Remember that `powers` may be arbitrarily broad.
+      allPowers: powers,
+      behaviors: proposalNS,
+      manifest: customManifest || manifest,
       makeConfig: (name, _permit) => {
-        log('coreProposal:', name);
+        log("coreProposal:", name);
         return { options };
       },
     });
   };
 
-  // Make the behavior the completion value.
-  return behavior;
-})({ manifestBundleRef, getManifestCall, overrideManifest, E });
+  return coreProposalBehavior;
+})({ manifestBundleRef, getManifestCall, customManifest, E });
+behavior;

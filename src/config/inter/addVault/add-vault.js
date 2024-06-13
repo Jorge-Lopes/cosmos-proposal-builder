@@ -3,7 +3,7 @@
 
 const manifestBundleRef = {
   bundleID:
-    "b1-903e41a7c448a41b456298404a1c32c69302574209c6a5228723ed19e2dd99f2a693641196445bc27a90e19e1dfadfe6b3d9c9a93f080ffa33a70908e5af4fff",
+    "b1-32ca014453181a1c5e6922d91b3e28040eef0385990b17d757a28d64041f388d5512ba9b8f8dfec8c815949272d00aed0ce900052d1e09b347d73f7f5ff6c38d",
 };
 const getManifestCall = harden([
   "getManifestForAddAssetToVault",
@@ -11,19 +11,22 @@ const getManifestCall = harden([
     debtLimitValue: undefined,
     interchainAssetOptions: {
       decimalPlaces: "%%NdecimalPlacesN%%",
-      denom:
-        "%%denom%%",
+      denom: "%%denom%%",
       initialPrice: undefined,
       issuerBoardId: undefined,
-      issuerName: "%%issuerName%%",
       keyword: "%%keyword%%",
       oracleBrand: "%%oracleBrand%%",
       proposedName: "%%proposedName%%",
     },
     interestRateValue: undefined,
+    liquidationMarginValue: undefined,
+    scaledPriceAuthorityRef: {
+      bundleID:
+        "b1-8e8051052c899966f3a37047d97f8749aab3f9878223fa4027b156b134b558dbbff514996739dd9ebd25c06522b1583de2cee859c53c9e98f0984814d8269acd",
+    },
   },
 ]);
-const overrideManifest = {
+const customManifest = {
   addAssetToVault: {
     brand: {
       consume: {
@@ -33,19 +36,17 @@ const overrideManifest = {
     consume: {
       agoricNamesAdmin: true,
       auctioneerKit: "auctioneer",
-      chainTimerService: true,
       vaultFactoryKit: "vaultFactory",
-    },
-    instance: {
-      consume: true,
     },
   },
   publishInterchainAssetFromBank: {
     consume: {
       agoricNamesAdmin: true,
       bankManager: true,
+      bankMints: true,
       reserveKit: true,
       startUpgradable: true,
+      vBankKits: true,
     },
     installation: {
       consume: {
@@ -62,6 +63,7 @@ const overrideManifest = {
       agoricNamesAdmin: true,
       priceAuthority: true,
       priceAuthorityAdmin: true,
+      scaledPriceAuthorityKits: true,
       startUpgradable: true,
     },
     installation: {
@@ -69,25 +71,28 @@ const overrideManifest = {
         scaledPriceAuthority: true,
       },
     },
-    instance: {
-      produce: true,
+    produce: {
+      scaledPriceAuthorityKits: true,
     },
   },
 };
 
-// Make the behavior the completion value.
-(({
+// Make a behavior function and "export" it by way of script completion value.
+// It is constructed by an anonymous invocation to ensure the absence of a global binding
+// for makeCoreProposalBehavior, which may not be necessary but preserves behavior pre-dating
+// https://github.com/Agoric/agoric-sdk/pull/8712 .
+const behavior = (({
   manifestBundleRef,
-  getManifestCall,
-  overrideManifest,
+  getManifestCall: [manifestGetterName, ...manifestGetterArgs],
+  customManifest,
   E,
   log = console.info,
-  restoreRef: overrideRestoreRef,
+  customRestoreRef,
 }) => {
   const { entries, fromEntries } = Object;
 
   // deeplyFulfilled is a bit overkill for what we need.
-  const shallowlyFulfilled = async obj => {
+  const shallowlyFulfilled = async (obj) => {
     if (!obj) {
       return obj;
     }
@@ -95,90 +100,115 @@ const overrideManifest = {
       entries(obj).map(async ([key, valueP]) => {
         const value = await valueP;
         return [key, value];
-      }),
+      })
     );
     return fromEntries(ents);
   };
 
-  /** @param {ChainBootstrapSpace & BootstrapPowers & { evaluateBundleCap: any }} allPowers */
-  const behavior = async allPowers => {
-    // NOTE: If updating any of these names extracted from `allPowers`, you must
-    // change `permits` above to reflect their accessibility.
-    const {
-      consume: { vatAdminSvc, zoe, agoricNamesAdmin },
-      evaluateBundleCap,
-      // NO installation: { ... },
-      modules: {
-        utils: { runModuleBehaviors },
-      },
-    } = allPowers;
-    const [exportedGetManifest, ...manifestArgs] = getManifestCall;
-
+  const makeRestoreRef = (vatAdminSvc, zoe) => {
     /** @type {(ref: import\('./externalTypes.js').ManifestBundleRef) => Promise<Installation<unknown>>} */
-    const defaultRestoreRef = async ref => {
+    const defaultRestoreRef = async (bundleRef) => {
       // extract-proposal.js creates these records, and bundleName is
-      // the name under which the bundle was installed into
+      // the optional name under which the bundle was installed into
       // config.bundles
-      const p =
-        'bundleName' in ref
-          ? E(vatAdminSvc).getBundleIDByName(ref.bundleName)
-          : ref.bundleID;
-      const bundleID = await p;
+      const bundleIdP =
+        "bundleName" in bundleRef
+          ? E(vatAdminSvc).getBundleIDByName(bundleRef.bundleName)
+          : bundleRef.bundleID;
+      const bundleID = await bundleIdP;
       const label = bundleID.slice(0, 8);
       return E(zoe).installBundleID(bundleID, label);
     };
-    const restoreRef = overrideRestoreRef || defaultRestoreRef;
+    return defaultRestoreRef;
+  };
+
+  /** @param {ChainBootstrapSpace & BootstrapPowers & { evaluateBundleCap: any }} powers */
+  const coreProposalBehavior = async (powers) => {
+    // NOTE: `powers` is expected to match or be a superset of the above `permits` export,
+    // which should therefore be kept in sync with this deconstruction code.
+    // HOWEVER, do note that this function is invoked with at least the *union* of powers
+    // required by individual moduleBehaviors declared by the manifest getter, which is
+    // necessary so it can use `runModuleBehaviors` to provide the appropriate subset to
+    // each one (see ./writeCoreProposal.js).
+    // Handle `powers` with the requisite care.
+    const {
+      consume: { vatAdminSvc, zoe, agoricNamesAdmin },
+      evaluateBundleCap,
+      installation: { produce: produceInstallations },
+      modules: {
+        utils: { runModuleBehaviors },
+      },
+    } = powers;
 
     // Get the on-chain installation containing the manifest and behaviors.
-    console.info('evaluateBundleCap', {
+    log("evaluateBundleCap", {
       manifestBundleRef,
-      exportedGetManifest,
+      manifestGetterName,
       vatAdminSvc,
     });
     let bcapP;
-    if ('bundleName' in manifestBundleRef) {
+    if ("bundleName" in manifestBundleRef) {
       bcapP = E(vatAdminSvc).getNamedBundleCap(manifestBundleRef.bundleName);
-    } else {
+    } else if ("bundleID" in manifestBundleRef) {
       bcapP = E(vatAdminSvc).getBundleCap(manifestBundleRef.bundleID);
+    } else {
+      const keys = Reflect.ownKeys(manifestBundleRef).map((key) =>
+        typeof key === "string" ? JSON.stringify(key) : String(key)
+      );
+      const keysStr = `[${keys.join(", ")}]`;
+      throw Error(
+        `bundleRef must have own bundleName or bundleID, missing in ${keysStr}`
+      );
     }
     const bundleCap = await bcapP;
 
-    const manifestNS = await evaluateBundleCap(bundleCap);
+    const proposalNS = await evaluateBundleCap(bundleCap);
 
-    console.error('execute', {
-      exportedGetManifest,
-      behaviors: Object.keys(manifestNS),
+    // Get the manifest and its metadata.
+    log("execute", {
+      manifestGetterName,
+      bundleExports: Object.keys(proposalNS),
     });
+    const restoreRef = customRestoreRef || makeRestoreRef(vatAdminSvc, zoe);
     const {
       manifest,
       options: rawOptions,
       installations: rawInstallations,
-    } = await manifestNS[exportedGetManifest](
+    } = await proposalNS[manifestGetterName](
       harden({ restoreRef }),
-      ...manifestArgs,
+      ...manifestGetterArgs
     );
 
     // Await references in the options or installations.
     const [options, installations] = await Promise.all(
-      [rawOptions, rawInstallations].map(shallowlyFulfilled),
+      [rawOptions, rawInstallations].map(shallowlyFulfilled)
     );
 
-    // DON'T Publish the installations for behavior dependencies.
-    // ...
-    //     produceInstallations[key].resolve(value);
+    // Publish the installations for our dependencies.
+    const installationEntries = entries(installations || {});
+    if (installationEntries.length > 0) {
+      const installAdmin = E(agoricNamesAdmin).lookupAdmin("installation");
+      await Promise.all(
+        installationEntries.map(([key, value]) => {
+          produceInstallations[key].resolve(value);
+          return E(installAdmin).update(key, value);
+        })
+      );
+    }
 
-    // Evaluate the manifest for our behaviors.
+    // Evaluate the manifest.
     return runModuleBehaviors({
-      allPowers,
-      behaviors: manifestNS,
-      manifest: overrideManifest || manifest,
+      // Remember that `powers` may be arbitrarily broad.
+      allPowers: powers,
+      behaviors: proposalNS,
+      manifest: customManifest || manifest,
       makeConfig: (name, _permit) => {
-        log('coreProposal:', name);
+        log("coreProposal:", name);
         return { options };
       },
     });
   };
 
-  // Make the behavior the completion value.
-  return behavior;
-})({ manifestBundleRef, getManifestCall, overrideManifest, E });
+  return coreProposalBehavior;
+})({ manifestBundleRef, getManifestCall, customManifest, E });
+behavior;
