@@ -31,11 +31,11 @@ describe("proposal builders - generateFromTemplate", () => {
     const values: AddVaultParams = {
       decimalPlaces: 6,
       denom:
-        "ibc/B1E6288B5A0224565D915D1F66716486F16D8A44BF33A9EC323DD6BA30764C35",
-      keyword: "STATOM",
-      issuerName: "stATOM",
-      proposedName: "stATOM",
-      oracleBrand: "stATOM",
+        "ibc/987C17B11ABC2B20019178ACE62929FE9840202CE79498E29FE8E5CB02B7C0A4",
+      keyword: "STARS",
+      issuerName: "STARS",
+      proposedName: "STARS",
+      oracleBrand: "STARS",
       oracleAddresses: MAINNET_ORACLE_OPERATORS,
     };
     const [vaultTemplate, oracleTemplate] = [
@@ -43,8 +43,8 @@ describe("proposal builders - generateFromTemplate", () => {
       resolveAsString("./addVault/add-oracle.js"),
     ];
     const [expectedVault, expectedOracle] = [
-      resolveAsString("./__fixtures__/add-stATOM.js"),
-      resolveAsString("./__fixtures__/add-stATOM-oracles.js"),
+      resolveAsString("./__fixtures__/add-STARS.js"),
+      resolveAsString("./__fixtures__/add-STARS-oracles.js"),
     ];
     const [generatedVault, generatedOracle] = [
       generateFromTemplate<AddVaultParams>(vaultTemplate, values),
@@ -58,11 +58,11 @@ describe("proposal builders - generateFromTemplate", () => {
     const values: AddVaultParams = {
       decimalPlaces: 6,
       denom:
-        "ibc/B1E6288B5A0224565D915D1F66716486F16D8A44BF33A9EC323DD6BA30764C35",
-      keyword: "STATOM",
-      issuerName: "stATOM",
-      proposedName: "stATOM",
-      oracleBrand: "stATOM",
+        "ibc/987C17B11ABC2B20019178ACE62929FE9840202CE79498E29FE8E5CB02B7C0A4",
+      keyword: "STARS",
+      issuerName: "STARS",
+      proposedName: "STARS",
+      oracleBrand: "STARS",
       oracleAddresses: EMERYNET_ORACLE_OPERATORS,
     };
     const [vaultTemplate, oracleTemplate] = [
@@ -70,8 +70,8 @@ describe("proposal builders - generateFromTemplate", () => {
       resolveAsString("./addVault/add-oracle.js"),
     ];
     const [expectedVault, expectedOracle] = [
-      resolveAsString("./__fixtures__/add-stATOM.js"),
-      resolveAsString("./__fixtures__/add-stATOM-oracles-emerynet.js"),
+      resolveAsString("./__fixtures__/add-STARS.js"),
+      resolveAsString("./__fixtures__/add-STARS-oracles-emerynet.js"),
     ];
     const [generatedVault, generatedOracle] = [
       generateFromTemplate<AddVaultParams>(vaultTemplate, values),
