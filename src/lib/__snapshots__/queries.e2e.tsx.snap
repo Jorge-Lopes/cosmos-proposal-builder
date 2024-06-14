@@ -70,3 +70,80 @@ exports[`React Query Hook Tests for RPC Endpoints > swingSetParams Query > shoul
   ],
 }
 `;
+
+exports[`React Query Hook Tests for RPC Endpoints > vaultManagerGovernance Query > should return data in a shape we're expecting 1`] = `
+{
+  "DebtLimit": {
+    "type": "amount",
+    "value": {
+      "brand": "$0.Alleged: IST brand",
+      "value": "+1000000000",
+    },
+  },
+  "InterestRate": {
+    "type": "ratio",
+    "value": {
+      "denominator": {
+        "brand": "$0",
+        "value": "+100",
+      },
+      "numerator": {
+        "brand": "$0",
+        "value": "+1",
+      },
+    },
+  },
+  "LiquidationMargin": {
+    "type": "ratio",
+    "value": {
+      "denominator": {
+        "brand": "$0",
+        "value": "+100",
+      },
+      "numerator": {
+        "brand": "$0",
+        "value": "+380",
+      },
+    },
+  },
+  "LiquidationPadding": {
+    "type": "ratio",
+    "value": {
+      "denominator": {
+        "brand": "$0",
+        "value": "+100",
+      },
+      "numerator": {
+        "brand": "$0",
+        "value": "+25",
+      },
+    },
+  },
+  "LiquidationPenalty": {
+    "type": "ratio",
+    "value": {
+      "denominator": {
+        "brand": "$0",
+        "value": "+100",
+      },
+      "numerator": {
+        "brand": "$0",
+        "value": "+1",
+      },
+    },
+  },
+  "MintFee": {
+    "type": "ratio",
+    "value": {
+      "denominator": {
+        "brand": "$0",
+        "value": "+10000",
+      },
+      "numerator": {
+        "brand": "$0",
+        "value": "+50",
+      },
+    },
+  },
+}
+`;

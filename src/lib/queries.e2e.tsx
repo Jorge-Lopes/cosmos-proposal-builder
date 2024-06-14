@@ -276,9 +276,12 @@ describe("React Query Hook Tests for RPC Endpoints", () => {
   });
 
   describe("vaultManagerGovernance Query", () => {
-    it("should return data", async ({ api, wrapper }: QueryTestContext) => {
+    it("should return data in a shape we're expecting", async ({
+      api,
+      wrapper,
+    }: QueryTestContext) => {
       const { result, waitFor } = renderHook(
-        () => useQuery(vaultManagerGovernanceQuery(api, "manager1")),
+        () => useQuery(vaultManagerGovernanceQuery(api, "manager2")),
         { wrapper }
       );
 
@@ -290,11 +293,15 @@ describe("React Query Hook Tests for RPC Endpoints", () => {
         ""
       );
       const governanceData = JSON.parse(governanceString).current;
-      const LiquidationMarginNumerator =
-        governanceData.LiquidationMargin.value.numerator.value;
-
-      // This assertion should be replaced with 380
-      expect(LiquidationMarginNumerator).toBe("+150");
+      expect(governanceData).toBeDefined();
+      expect(governanceData).toMatchSnapshot();
+      /* 
+      * Note: the governanceData snapshot has the LiquidationMargin numerator value set to 380
+      * As set in the governance proposal builder (see https://github.com/alexanderem49/agoric-sdk/releases/tag/default-params)
+      * ToDo: 
+      *   update link above with respective PR
+      *   manager2 is hardcoded in the query, should be dynamically defined
+      */
     });
   });
 });
