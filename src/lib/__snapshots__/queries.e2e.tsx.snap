@@ -102,7 +102,7 @@ exports[`React Query Hook Tests for RPC Endpoints > vaultManagerGovernance Query
       },
       "numerator": {
         "brand": "$0",
-        "value": "+380",
+        "value": "+150",
       },
     },
   },

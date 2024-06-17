@@ -20,7 +20,6 @@ import type {
   DistributionParams,
   StakingParams,
 } from "../types/gov";
-import { VaultManagerGovernance } from "../types/vstorage";
 
 export const swingSetParamsQuery = (
   api: string | undefined,

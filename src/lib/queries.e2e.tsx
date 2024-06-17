@@ -281,7 +281,7 @@ describe("React Query Hook Tests for RPC Endpoints", () => {
       wrapper,
     }: QueryTestContext) => {
       const { result, waitFor } = renderHook(
-        () => useQuery(vaultManagerGovernanceQuery(api, "manager2")),
+        () => useQuery(vaultManagerGovernanceQuery(api, "manager1")),
         { wrapper }
       );
 
@@ -295,12 +295,14 @@ describe("React Query Hook Tests for RPC Endpoints", () => {
       const governanceData = JSON.parse(governanceString).current;
       expect(governanceData).toBeDefined();
       expect(governanceData).toMatchSnapshot();
-      /* 
-      * Note: the governanceData snapshot has the LiquidationMargin numerator value set to 380
-      * As set in the governance proposal builder (see https://github.com/alexanderem49/agoric-sdk/releases/tag/default-params)
+      /*  
+      * Note: the governanceData snapshot has the LiquidationMargin numerator value set to 150.
+      * After the core-eval proposed here (see https://github.com/alexanderem49/agoric-sdk/releases/tag/default-params) is included in the a3p image used for this test,
+      * the value of LiquidationMargin numerator should be 380. 
+      * The managerID should be increased as well.
       * ToDo: 
       *   update link above with respective PR
-      *   manager2 is hardcoded in the query, should be dynamically defined
+      *   manager# is hardcoded in the query, should be dynamically defined
       */
     });
   });
