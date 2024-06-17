@@ -27,7 +27,9 @@ const getManifestCall = harden([
       restartDelay: 1,
       timeout: 10,
     },
-    oracleAddresses: ["%%NoracleAddressesN%%"],
+    oracleAddresses: [
+      "%%NoracleAddressesN%%"
+    ],
     priceAggregatorRef: {
       bundleID:
         "b1-4efd31d2e91dd6340d31a80aea1b1918f99e9f05f2ba9e5b9bb96711f1a470b0ad7eca202fbf63dad2c4761640ebc0b2de9caffa79349fd64e7dde8d3bc0e022",
@@ -142,9 +144,9 @@ const behavior = (({
       const keys = Reflect.ownKeys(manifestBundleRef).map((key) =>
         typeof key === "string" ? JSON.stringify(key) : String(key)
       );
-      const keysStr = `[${keys.join(", ")}]`;
+      const keysStr = '[' + keys.join(", ") + ']';
       throw Error(
-        `bundleRef must have own bundleName or bundleID, missing in ${keysStr}`
+        'bundleRef must have own bundleName or bundleID, missing in ' + keysStr
       );
     }
     const bundleCap = await bcapP;
